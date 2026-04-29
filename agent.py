@@ -1,12 +1,12 @@
 import os
 from typing import Annotated, TypedDict, List, Union, Literal
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_groq import ChatGroq
+from langchain_community.tools import DuckDuckGoSearchRun
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.tools import Tool
 
 load_dotenv()
 
@@ -16,8 +16,13 @@ class AgentState(TypedDict):
     steps_count: int  # Controle de iterações para evitar loops infinitos
     max_steps: int    # Limite máximo de pesquisas
 
-# 2. Configuração das Ferramentas
-search_tool = TavilySearchResults(max_results=5)
+# 2. Configuração das Ferramentas GRATUITAS (DuckDuckGo)
+ddg_search = DuckDuckGoSearchRun()
+search_tool = Tool(
+    name="duckduckgo_search",
+    description="Útil para pesquisar tendências atuais na internet de forma gratuita.",
+    func=ddg_search.run
+)
 tools = [search_tool]
 tool_node = ToolNode(tools)
 
@@ -39,8 +44,13 @@ DIRETRIZES DE ANÁLISE:
 
 Importante: Se não encontrar informações sobre algo muito recente, admita a limitação, mas forneça o contexto mais próximo disponível."""
 
-# 4. Configuração do Modelo
-model = ChatOpenAI(model="gpt-4o-mini", temperature=0.2).bind_tools(tools)
+# 4. Configuração do Modelo GRATUITO (Groq - Llama 3)
+# Nota: O usuário precisará de uma API Key gratuita do Groq (console.groq.com)
+model = ChatGroq(
+    model_name="llama-3.3-70b-versatile", 
+    temperature=0.2,
+    groq_api_key=os.getenv("GROQ_API_KEY")
+).bind_tools(tools)
 
 # 5. Definição dos Nós
 def call_model(state: AgentState):
